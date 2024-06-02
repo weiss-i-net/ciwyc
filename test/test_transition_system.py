@@ -1,4 +1,4 @@
-from transition_system import VariableSet, get_next_states, State, unroll_while_program
+from transition_system import *
 from while_parsing import parse_program
 
 
@@ -37,7 +37,7 @@ def test_get_next_states():
     assert s3 == State(5, VariableSet(_DATA={"y": 1, "x": None}))
 
 
-def test_unroll_while_program():
+def test_unroll_while_program_simple():
     source = """
     y := 1
     INPUT x
@@ -52,5 +52,59 @@ def test_unroll_while_program():
     for i, stmt in enumerate(program):
         print(f"{i}: {stmt}")
     ts = unroll_while_program(program, 10)
-    print(ts)
-    print(ts.transitions[State(7, VariableSet(_DATA={"y": 1, "x": -1}))])
+    # fmt: off
+    expected_ts = TransitionSystem(10, State(0, VariableSet()),
+        {
+            State.from_string("<0, >"): (State.from_string("<1, y=1>"),),
+            State.from_string("<1, y=1>"): (State.from_string("<2, y=1, x=None>"),),
+            State.from_string("<2, y=1, x=None>"): ( State.from_string("<3, y=1, x=None>"), State.from_string("<5, y=1, x=None>"),),
+            State.from_string("<3, y=1, x=None>"): ( State.from_string("<4, y=1, x=None>"),),
+            State.from_string("<5, y=1, x=None>"): ( State.from_string("<6, y=1, x=-1>"),),
+            State.from_string("<4, y=1, x=None>"): ( State.from_string("<7, y=1, x=None>"),),
+            State.from_string("<6, y=1, x=-1>"): (State.from_string("<7, y=1, x=-1>"),),
+        },
+    )
+    # fmt: on
+    assert ts == expected_ts
+
+
+def test_unroll_while_program_loop():
+    source = """
+    INPUT x
+    WHILE x < 10 DO
+        x := x + 1
+        y := y + 1
+    END WHILE
+    OUTPUT x
+    OUTPUT y
+    """
+    depth = 11
+    program = list(parse_program(source.splitlines()))
+    ts = unroll_while_program(program, depth)
+    expected_ts = TransitionSystem(
+        depth,
+        State(0, VariableSet()),
+        {
+            State.from_string(lhs): tuple(State.from_string(m) for m in rhs)
+            for lhs, rhs in [
+                ("<0, >", ["<1, x=None>"]),
+                ("<1, x=None, y=1>", ["<2, x=None, y=1>", "<5, x=None, y=1>"]),
+                ("<1, x=None, y=2>", ["<2, x=None, y=2>", "<5, x=None, y=2>"]),
+                ("<1, x=None>", ["<2, x=None>", "<5, x=None>"]),
+                ("<2, x=None, y=1>", ["<3, x=None, y=1>"]),
+                ("<2, x=None, y=2>", ["<3, x=None, y=2>"]),
+                ("<2, x=None>", ["<3, x=None>"]),
+                ("<3, x=None, y=1>", ["<4, x=None, y=2>"]),
+                ("<3, x=None>", ["<4, x=None, y=1>"]),
+                ("<4, x=None, y=1>", ["<1, x=None, y=1>"]),
+                ("<4, x=None, y=2>", ["<1, x=None, y=2>"]),
+                ("<5, x=None, y=1>", ["<6, x=None, y=1>"]),
+                ("<5, x=None, y=2>", ["<6, x=None, y=2>"]),
+                ("<5, x=None>", ["<6, x=None>"]),
+                ("<6, x=None, y=1>", ["<7, x=None, y=1>"]),
+                ("<6, x=None>", ["<7, x=None>"]),
+            ]
+        },
+    )
+    assert ts == expected_ts
+

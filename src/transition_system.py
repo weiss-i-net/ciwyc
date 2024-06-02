@@ -55,12 +55,30 @@ class VariableSet:
 #            return VariableSet(self[:i] + ((changed_var, new_value),) + self[i:])
 
 
+def p(x):
+    print(x)
+    return x
+
+
 class State(NamedTuple):
     location: int
     variables: VariableSet
 
     def __str__(self):
         return f"<{self.location}, {self.variables}>"
+
+    @classmethod
+    def from_string(cls, state_str: str):
+        location, *rest = state_str.strip()[1:-1].split(", ")
+        if rest == [""]:
+            return cls(int(location), VariableSet())
+
+        data = {}
+        for var in rest:
+            k, v = var.split("=")
+            data[k] = None if v == "None" else int(v)
+
+        return cls(int(location), VariableSet(_DATA=data))
 
 
 def _init_ts_successor() -> dict[State, tuple[State]]:
