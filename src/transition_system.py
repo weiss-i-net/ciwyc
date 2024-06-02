@@ -73,13 +73,18 @@ class TransitionSystem:
 
     depth: int
     initial_state: State = State(0, VariableSet())
-    transitions: dict[State, tuple[State,...]] = dataclasses.field(
+    transitions: dict[State, tuple[State, ...]] = dataclasses.field(
         default_factory=_init_ts_successor
     )
 
     def __str__(self):
-        return (f"TransitionSystem(depth={self.depth}, initial_state={self.initial_state}, transitions=\n" + "\n".join(f"    {k} -> {' | '.join(map(str, v))}" for k, v in self.transitions.items()) + "\n)")
-
+        transition_str = "\n".join(
+            f"    {k} -> {' | '.join(map(str, v))}" for k, v in self.transitions.items()
+        )
+        return (
+            f"TransitionSystem(depth={self.depth}, initial_state={self.initial_state},"
+            f" transitions=\n{transition_str}\n)"
+        )
 
 
 def get_next_states(program: list[Instruction], state: State) -> tuple[State, ...]:
@@ -102,31 +107,30 @@ def get_next_states(program: list[Instruction], state: State) -> tuple[State, ..
             # i cant find a good why to type this in the case statement
             arg_values = map(variables.get, typing.cast(list[str | int], args))
             result = apply_op(op, arg_values)
-            return State(location + 1, variables.set(var, result)),
+            return (State(location + 1, variables.set(var, result)),)
 
-        case (
-            InstructionType.JUMP_IF_NOT,
-            (Operator(f=op), *args, int(jump_distance)),
-        ):
+        case (InstructionType.JUMP_IF_NOT, (Operator(f=op), *args, int(jump_distance))):
             arg_values = map(variables.get, typing.cast(list[str | int], args))
             result = apply_op(op, arg_values)
 
             if result is None:
-                return State(location + 1, variables), State(location + jump_distance, variables)
+                return State(location + 1, variables), State(
+                    location + jump_distance, variables
+                )
             if result == 0:
-                return State(location + 1, variables),
+                return (State(location + 1, variables),)
             else:
-                return State(location + jump_distance, variables),
+                return (State(location + jump_distance, variables),)
 
         case (InstructionType.JUMP, (int(jump_distance),)):
-            return State(location + jump_distance, variables),
+            return (State(location + jump_distance, variables),)
 
         case (InstructionType.INPUT, (str(x),)):
             new_variables = variables.set(x, None)
-            return State(location + 1, new_variables),
+            return (State(location + 1, new_variables),)
 
         case (InstructionType.OUTPUT, _):
-            return State(location + 1, variables),
+            return (State(location + 1, variables),)
 
         case _:
             raise ValueError(f"Invalid instruction: {instruction}")

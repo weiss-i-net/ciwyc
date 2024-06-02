@@ -312,7 +312,7 @@ def run_interactive_shell(
     output_function=print,
 ):
     output_function(
-        "Welcome to the WHILE interactive shell! " 'To exit the shell, type "EXIT"\n'
+        'Welcome to the WHILE interactive shell! To exit the shell, type "EXIT"\n'
     )
 
     def source_code_input():
