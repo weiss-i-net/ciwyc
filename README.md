@@ -20,8 +20,9 @@ vitual environment automatically.
 Utilities
 ---------
 - `src/compare_encodings.py`: Create and display the SAT/SMT encoding of a WHILE program. Optionally save it in the SMTLIB2 format.
-    - SAT encodings only support "+" and binary comparisons as operators.
-    - SMT encodings support most operators (see smt.py).
+    - SAT encodings only support "+" and binary comparisons.
+    - SMT encodings support most operators (see `smt.py`).
+    - both encodings only support single-letter lowercase variables. (This can be extended in `src/transition_relation.py`.)
 - `src/transition_system.py`: Create and display a transition system that results from a direct unrolling of a WHILE program.
 - `src/while_parsing.py`: Parse and run WHILE programs. Also includes an interactive shell mode.
 - `while_programs`: Provides some example programs. Not all examples can be encoded in SAT/SMT.
