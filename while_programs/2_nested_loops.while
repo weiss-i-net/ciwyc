@@ -1,0 +1,15 @@
+INPUT x
+INPUT y
+
+WHILE a < x DO
+  a := a + 1
+
+  WHILE b < y DO
+    b := b + 1
+
+  END WHILE
+END WHILE
+
+
+
+

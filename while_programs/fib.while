@@ -1,0 +1,11 @@
+INPUT l
+
+a := 0
+b := 1
+
+WHILE a < l DO
+  OUTPUT a
+  t := b
+  b := a + b
+  a := t
+END WHILE

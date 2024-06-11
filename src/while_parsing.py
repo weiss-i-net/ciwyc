@@ -26,8 +26,8 @@
 #
 # TODO: add ASSERT statement
 
-from collections.abc import Sequence, Callable, Iterator, Iterable
-from typing import NamedTuple, Protocol
+from collections.abc import Sequence, Iterator, Iterable
+from typing import NamedTuple
 from enum import Enum
 import argparse
 import itertools as it
@@ -35,31 +35,20 @@ import math
 import inspect
 import collections
 
-
-class Variadic[Arg, Ret](Protocol):  # new python 3.12 generic type syntax
-    def __call__(self, *args: Arg) -> Ret: ...
-
-
-type OperatorFunction[Arg, Ret] = (  # new python 3.12 type alias syntax
-    Callable[[], Ret]
-    | Callable[[Arg], Ret]
-    | Callable[[Arg, Arg], Ret]
-    | Variadic[Arg, Ret]
-)
+from util import OperatorFunction
 
 
 class Operator(NamedTuple):
     name: str
     is_infix: bool
-    f: OperatorFunction[int, int]
+    f: OperatorFunction[int, int]  # changed to Any for compaitibly with z3.BitVec
 
 
 OPERATORS: dict[str, Operator] = {
     op.name: op
     for op in [
-        Operator("TRUE", False, lambda: True),
-        Operator("FALSE", False, lambda: False),
-        Operator("NOT", False, lambda n: not n),
+        Operator("FALSE", False, lambda: 0),
+        Operator("NOT", False, lambda n: n == 0),
         Operator("--", False, lambda n: -n),
         Operator("ID", False, lambda n: n),
         Operator("<", True, lambda a, b: a < b),
@@ -68,7 +57,7 @@ OPERATORS: dict[str, Operator] = {
         Operator(">=", True, lambda a, b: a >= b),
         Operator(">", True, lambda a, b: a > b),
         Operator("!=", True, lambda a, b: a != b),
-        Operator("AND", True, lambda a, b: a and b),
+        Operator("AND", True, lambda a, b: a * b),
         Operator("OR", True, lambda a, b: a or b),
         Operator("+", True, lambda a, b: a + b),
         Operator("-", True, lambda a, b: a - b),
@@ -115,9 +104,7 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
             return False
 
     def is_valid_var(var: str) -> bool:
-        return not any(
-            var.startswith(s) for s in it.chain(KEYWORDS, OPERATORS, "+-01233456789")
-        )
+        return not any(var.startswith(s) for s in it.chain(KEYWORDS, OPERATORS, "+-01233456789"))
 
     def are_valid_args(args) -> bool:
         return all(is_int(arg) or is_valid_var(arg) for arg in args)
@@ -135,30 +122,24 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
     def check_signature(op_name: str, num_args: int, is_infix: bool) -> None:
         if is_infix != OPERATORS[op_name].is_infix:
             raise ValueError(
-                f'In "{line}":\n{op_name} is a'
-                f' {"in" if OPERATORS[op_name].is_infix else "pre"}fix operator.'
+                f'In "{line}":\n{op_name} is a {"in" if OPERATORS[op_name].is_infix else "pre"}fix operator.'
             )
         sig = inspect.signature(OPERATORS[op_name].f)
         try:
             sig.bind(*(0,) * num_args)
         except TypeError:
-            raise ValueError(
-                f'In "{line}":\n{op_name} takes {len(sig.parameters)} arguments.'
-            ) from TypeError
+            raise ValueError(f'In "{line}":\n{op_name} takes {len(sig.parameters)} arguments.') from TypeError
 
     def parse_set_var(var: str, op_name: str, *args: str, is_infix: bool = False):
         check_signature(op_name, len(args), is_infix)
-        instruction = Instruction(
-            InstructionType.SET_VAR, (var, OPERATORS[op_name], *to_int(args))
-        )
+        instruction = Instruction(InstructionType.SET_VAR, (var, OPERATORS[op_name], *to_int(args)))
         program_buffer.append(instruction)
 
     def parse_if(op_name: str, *args: str, is_infix: bool = False):
         check_signature(op_name, len(args), is_infix)
         if_else_stack.append(len(program_buffer))
         instruction = Instruction(
-            InstructionType.JUMP_IF_NOT,
-            (OPERATORS[op_name], *to_int(args), "placeholder"),
+            InstructionType.JUMP_IF_NOT, (OPERATORS[op_name], *to_int(args), "placeholder")
         )
         program_buffer.append(instruction)
 
@@ -183,8 +164,7 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
         check_signature(op_name, len(args), is_infix)
         while_stack.append(len(program_buffer))
         instruction = Instruction(
-            InstructionType.JUMP_IF_NOT,
-            (OPERATORS[op_name], *to_int(args), "placeholder"),
+            InstructionType.JUMP_IF_NOT, (OPERATORS[op_name], *to_int(args), "placeholder")
         )
         program_buffer.append(instruction)
 
@@ -194,26 +174,20 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
         program_buffer[while_position] = Instruction(
             instruction_type, (*args, len(program_buffer) - while_position + 1)
         )
-        program_buffer.append(
-            Instruction(InstructionType.JUMP, (while_position - len(program_buffer),))
-        )
+        program_buffer.append(Instruction(InstructionType.JUMP, (while_position - len(program_buffer),)))
 
     for line in source_code:
         tokens = line.strip().split()
         match tokens:
             case [var, ":=", arg] if is_valid(var, args=(arg,)):
                 parse_set_var(var, "ID", arg, is_infix=False)
-            case [var, ":=", arg_1, op_name, arg_2] if is_valid(
-                var, op_name, (arg_1, arg_2)
-            ):
+            case [var, ":=", arg_1, op_name, arg_2] if is_valid(var, op_name, (arg_1, arg_2)):
                 parse_set_var(var, op_name, arg_1, arg_2, is_infix=True)
             case [var, ":=", op_name, *args] if is_valid(var, op_name, args):
                 parse_set_var(var, op_name, *args)
             case ["IF", arg, "THEN"] if is_valid(args=(arg,)):
                 parse_if("ID", arg)
-            case ["IF", arg_1, op_name, arg_2, "THEN"] if is_valid(
-                op_name=op_name, args=(arg_1, arg_2)
-            ):
+            case ["IF", arg_1, op_name, arg_2, "THEN"] if is_valid(op_name=op_name, args=(arg_1, arg_2)):
                 parse_if(op_name, arg_1, arg_2, is_infix=True)
             case ["IF", op_name, *args, "THEN"] if is_valid(op_name=op_name, args=args):
                 parse_if(op_name, *args)
@@ -223,13 +197,9 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
                 parse_end_if()
             case ["WHILE", arg, "DO"] if is_valid(args=(arg,)):
                 parse_while("ID", arg)
-            case ["WHILE", arg_1, op_name, arg_2, "DO"] if is_valid(
-                op_name=op_name, args=(arg_1, arg_2)
-            ):
+            case ["WHILE", arg_1, op_name, arg_2, "DO"] if is_valid(op_name=op_name, args=(arg_1, arg_2)):
                 parse_while(op_name, arg_1, arg_2, is_infix=True)
-            case ["WHILE", op_name, *args, "DO"] if is_valid(
-                op_name=op_name, args=args
-            ):
+            case ["WHILE", op_name, *args, "DO"] if is_valid(op_name=op_name, args=args):
                 parse_while(op_name, *args)
             case ["END", "WHILE"]:
                 parse_end_while()
@@ -247,13 +217,9 @@ def parse_program(source_code: Iterable[str]) -> Iterator[Instruction]:
             program_buffer.clear()
 
     if if_else_stack:
-        raise ValueError(
-            f'IF statement "{program_buffer[if_else_stack[-1]]}" was not closed'
-        )
+        raise ValueError(f'IF statement "{program_buffer[if_else_stack[-1]]}" was not closed')
     if while_stack:
-        raise ValueError(
-            f'WHILE statement "{program_buffer[while_stack[-1]]}" was not closed'
-        )
+        raise ValueError(f'WHILE statement "{program_buffer[while_stack[-1]]}" was not closed')
 
 
 def run_program(
@@ -283,10 +249,7 @@ def run_program(
         match instruction:
             case (InstructionType.SET_VAR, (str(x), Operator(f=op), *args)):
                 variables[x] = op(*map(get_value, args))
-            case (
-                InstructionType.JUMP_IF_NOT,
-                (Operator(f=op), *args, int(jump_distance)),
-            ):
+            case (InstructionType.JUMP_IF_NOT, (Operator(f=op), *args, int(jump_distance))):
                 if not op(*map(get_value, args)):
                     program_counter += jump_distance - 1
             case (InstructionType.JUMP, (int(jump_distance),)):
@@ -307,13 +270,9 @@ def run_program(
 
 
 def run_interactive_shell(
-    source_code: Iterable[str] | None = None,
-    input_function=input,
-    output_function=print,
+    source_code: Iterable[str] | None = None, input_function=input, output_function=print
 ):
-    output_function(
-        'Welcome to the WHILE interactive shell! To exit the shell, type "EXIT"\n'
-    )
+    output_function('Welcome to the WHILE interactive shell! To exit the shell, type "EXIT"\n')
 
     def source_code_input():
         if source_code is not None:
@@ -329,18 +288,14 @@ def run_interactive_shell(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Interpreter and optimizer for the WHILE language."
-    )
+    parser = argparse.ArgumentParser(description="Interpreter and optimizer for the WHILE language.")
     parser.add_argument(
         "inputfile",
         nargs="?",
         type=argparse.FileType("r"),
         help="Input file containing the source code to be interpreted",
     )
-    parser.add_argument(
-        "-i", "--interactive", action="store_true", help="Run in interactive shell mode"
-    )
+    parser.add_argument("-i", "--interactive", action="store_true", help="Run in interactive shell mode")
     args = parser.parse_args()
 
     source_code = None

@@ -7,16 +7,7 @@ ID = OPERATORS["ID"]
 
 
 def test_parse_program():
-    source = [
-        "INPUT X",
-        "IF X >= 0 THEN",
-        "Y := X",
-        "ELSE",
-        "Z := -1",
-        "Y := Z * X",
-        "END IF",
-        "OUTPUT Y",
-    ]
+    source = ["INPUT X", "IF X >= 0 THEN", "Y := X", "ELSE", "Z := -1", "Y := Z * X", "END IF", "OUTPUT Y"]
     expected = [
         Instruction(InstructionType[t], args)
         for t, args in (
@@ -92,9 +83,7 @@ def test_operators(op_name: str, args: list[int], use_infix: bool):
         source = [f"out := {op_name} {' '.join(map(str, arg_names))}"]
 
     params = inspect.signature(op.f).parameters
-    is_variadic = [param.kind for param in params.values()] == [
-        inspect.Parameter.VAR_POSITIONAL
-    ]
+    is_variadic = [param.kind for param in params.values()] == [inspect.Parameter.VAR_POSITIONAL]
 
     if op.is_infix != use_infix or (not is_variadic and len(params) != len(args)):
         with pytest.raises(ValueError):

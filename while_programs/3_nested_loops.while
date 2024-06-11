@@ -1,0 +1,20 @@
+INPUT x
+INPUT y
+INPUT z
+
+WHILE a < x DO
+  a := a + 1
+
+  WHILE b < y DO
+    b := b + 1
+
+    WHILE c < z DO
+      c := c + 1
+
+    END WHILE
+  END WHILE
+END WHILE
+
+
+
+

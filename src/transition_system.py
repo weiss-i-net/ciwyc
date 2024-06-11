@@ -2,11 +2,14 @@
 # depth
 
 from typing import Iterable, NamedTuple, ClassVar
+import itertools as it
 import typing
 import dataclasses
 import collections
+import sys
 
 from while_parsing import Instruction, InstructionType, Operator, OperatorFunction
+import while_parsing
 
 
 @dataclasses.dataclass(slots=True, kw_only=True, frozen=True)
@@ -55,11 +58,6 @@ class VariableSet:
 #            return VariableSet(self[:i] + ((changed_var, new_value),) + self[i:])
 
 
-def p(x):
-    print(x)
-    return x
-
-
 class State(NamedTuple):
     location: int
     variables: VariableSet
@@ -91,9 +89,7 @@ class TransitionSystem:
 
     depth: int
     initial_state: State = State(0, VariableSet())
-    transitions: dict[State, tuple[State, ...]] = dataclasses.field(
-        default_factory=_init_ts_successor
-    )
+    transitions: dict[State, tuple[State, ...]] = dataclasses.field(default_factory=_init_ts_successor)
 
     def __str__(self):
         transition_str = "\n".join(
@@ -132,9 +128,7 @@ def get_next_states(program: list[Instruction], state: State) -> tuple[State, ..
             result = apply_op(op, arg_values)
 
             if result is None:
-                return State(location + 1, variables), State(
-                    location + jump_distance, variables
-                )
+                return State(location + 1, variables), State(location + jump_distance, variables)
             if result == 0:
                 return (State(location + 1, variables),)
             else:
@@ -168,3 +162,17 @@ def unroll_while_program(program: list[Instruction], depth: int) -> TransitionSy
         current_states = next_states
 
     return ts
+
+
+def main():
+    with open(sys.argv[1]) as file:
+        source = file.read().splitlines()
+
+    program = while_parsing.parse_program(source)
+    ts = unroll_while_program(list(program), int(sys.argv[2]))
+    print(f"Unrolled transition system:\n {ts}")
+    print(f"Total states: {1+len(set(it.chain.from_iterable(ts.transitions.values())))}")
+
+
+if __name__ == "__main__":
+    main()

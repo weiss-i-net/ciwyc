@@ -81,6 +81,7 @@ def test_unroll_while_program_loop():
     depth = 11
     program = list(parse_program(source.splitlines()))
     ts = unroll_while_program(program, depth)
+    print(ts)
     expected_ts = TransitionSystem(
         depth,
         State(0, VariableSet()),
@@ -107,4 +108,3 @@ def test_unroll_while_program_loop():
         },
     )
     assert ts == expected_ts
-
