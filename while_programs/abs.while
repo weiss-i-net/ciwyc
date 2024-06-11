@@ -1,0 +1,7 @@
+INPUT x
+IF x >= 0 THEN
+    y := x
+ELSE
+    y := -1 * x
+END IF
+OUTPUT y

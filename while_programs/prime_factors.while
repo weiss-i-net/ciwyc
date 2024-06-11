@@ -1,0 +1,27 @@
+INPUT n
+prime := 2
+
+WHILE n != 1 DO
+  n_mod_prime := n % prime
+  WHILE n_mod_prime == 0 DO
+    OUTPUT prime
+    n := n / prime
+    n_mod_prime := n % prime
+  END WHILE
+
+  is_prime := FALSE
+  WHILE NOT is_prime DO
+    prime := prime + 1
+    is_prime := TRUE
+    factor := 2
+    factor_sq := factor ^ 2
+    WHILE factor_sq <= prime DO
+      prime_mod_factor := prime % factor
+      IF prime_mod_factor == 0 THEN
+        is_prime := FALSE
+      END IF
+      factor := factor + 1
+      factor_sq := factor ^ 2
+    END WHILE
+  END WHILE
+END WHILE
