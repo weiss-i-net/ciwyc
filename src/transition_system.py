@@ -7,6 +7,7 @@ import typing
 import dataclasses
 import collections
 import sys
+import argparse
 
 from while_parsing import Instruction, InstructionType, Operator, OperatorFunction
 import while_parsing
@@ -165,13 +166,20 @@ def unroll_while_program(program: list[Instruction], depth: int) -> TransitionSy
 
 
 def main():
-    with open(sys.argv[1]) as file:
+    parser = argparse.ArgumentParser(description="Unroll a WHILE program for a given number of steps and show the resulting transition system.")
+    parser.add_argument("input_file", help="The input file containing the WHILE program.")
+    parser.add_argument("steps", type=int, help="The number of steps to unroll the WHILE program.")
+    
+    args = parser.parse_args()
+    
+    with open(args.input_file) as file:
         source = file.read().splitlines()
 
     program = while_parsing.parse_program(source)
-    ts = unroll_while_program(list(program), int(sys.argv[2]))
-    print(f"Unrolled transition system:\n {ts}")
-    print(f"Total states: {1+len(set(it.chain.from_iterable(ts.transitions.values())))}")
+    ts = unroll_while_program(list(program), args.steps)
+    
+    print(ts)
+    print(f"Total states: {1 + len(set(it.chain.from_iterable(ts.transitions.values())))}")
 
 
 if __name__ == "__main__":
