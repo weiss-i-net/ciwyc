@@ -99,7 +99,6 @@ def get_single_transition_formulas[
     create_literal: Callable[[int], T],
     get_operator_restriction: OperatorRestrictionGetter[T],
 ) -> tuple[Z3BoolExpression, ...]:
-    print(instruction)
     # returns up to four subformulas
 
     shared_conditions: list[Z3BoolExpression] = [state_a.location == create_literal(location)]
@@ -200,7 +199,6 @@ def get_transition_relation[
     # is_successor, but this turned out to complicated. Also I'm not sure which is faster.
 
     def is_successor(state_a_index: int, state_b_index: int) -> Z3BoolExpression:
-        print("hi")
         state_a = StateVariable.init(str(state_a_index), Encoding.create_variable)
         state_b = StateVariable.init(str(state_b_index), Encoding.create_variable)
 
